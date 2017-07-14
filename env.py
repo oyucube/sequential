@@ -7,4 +7,3 @@ test = "cpu"
 if socket.gethostname() == "naruto":
     xp = cuda.cupy
     test = "gpu"
-    print("gpu mode")

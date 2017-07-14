@@ -85,29 +85,22 @@ class SAF(chainer.Chain):
 
         if train == 1:
             self.reset()
-            r_buf = 0
+            r_buf = xp.zeros((num_lm, 1))
             l, s, b = self.first_forward(x, num_lm)
+            loss_buf = 0
             for i in range(n_step):
                 if i + 1 == n_step:
                     xm, lm, sm = self.make_img(x, l, s, num_lm, random=1)
                     l1, s1, y, b1 = self.recurrent_forward(xm, lm, sm)
-
-                    loss, size_p = self.cul_loss(y, target, l, s, lm, sm)
-                    r_buf += size_p
-                    r = xp.where(
-                        xp.argmax(y.data, axis=1) == xp.argmax(target.data, axis=1), 1, 0).reshape((num_lm, 1)).astype(
-                        xp.float32)
-
-                    loss += F.sum((r - b) * (r - b))
-                    k = self.r * (r - b.data)
-                    loss += F.sum(k * r_buf)
-
-                    return loss / num_lm
+                    loss, r = self.cul_loss(y, target[i], l, s, lm, sm, r_buf, b, num_lm)
+                    loss_buf += loss
+                    return loss_buf / num_lm
                 else:
                     xm, lm, sm = self.make_img(x, l, s, num_lm, random=1)
                     l1, s1, y, b1 = self.recurrent_forward(xm, lm, sm)
-                    loss, size_p = self.cul_loss(y, target, l, s, lm, sm)
-                    r_buf += size_p
+                    loss, r = self.cul_loss(y, target[i], l, s, lm, sm, r_buf, b, num_lm)
+                    r_buf += r
+                    loss_buf += loss
                 l = l1
                 s = s1
                 b = b1
@@ -122,7 +115,7 @@ class SAF(chainer.Chain):
 
                     accuracy = y.data * target.data
 
-                    return xp.sum(accuracy)/ num_lm, y.data / n_step, xp.sum(accuracy) / num_lm
+                    return xp.sum(accuracy) / num_lm, y.data / n_step, xp.sum(accuracy) / num_lm
                 else:
                     xm, lm, sm = self.make_img(x, l, s, num_lm, random=0)
                     l1, s1, y, b = self.recurrent_forward(xm, lm, sm)
@@ -169,7 +162,7 @@ class SAF(chainer.Chain):
 
         l = F.sigmoid(self.attention_loc(h5))
         s = F.sigmoid(self.attention_scale(h5))
-        b = F.sigmoid(self.baseline(Variable(h5.data)))
+        b = F.relu(self.baseline(Variable(h5.data)))
         return l, s, b
 
     def recurrent_forward(self, xm, lm, sm, test=False):
@@ -185,12 +178,12 @@ class SAF(chainer.Chain):
         l = F.sigmoid(self.attention_loc(hr2))
         s = F.sigmoid(self.attention_scale(hr2))
         y = F.softmax(self.class_full(hr1))
-        b = F.sigmoid(self.baseline(Variable(hr2.data)))
+        b = F.relu(self.baseline(Variable(hr2.data)))
         return l, s, y, b
 
     # loss 関数を計算
 
-    def cul_loss(self, y, target, l, s, lm, sm):
+    def cul_loss(self, y, target, l, s, lm, sm, r_buf, b, num_lm):
 
         zm = xp.power(10, sm.data - 1)
 
@@ -204,14 +197,13 @@ class SAF(chainer.Chain):
 
         loss = -F.sum(accuracy)
 
-        # r = xp.where(
-        #     xp.argmax(y.data, axis=1) == xp.argmax(target.data, axis=1), 1, 0).reshape((num_lm, 1)).astype(xp.float32)
-        #
-        # loss += F.sum((r - b) * (r - b))
-        # bb = xp.sum(b.data) / num_lm
-        # lossm = self.r * (r - bb)
-        # loss += F.sum(Variable(lossm) * size_p)
-        return loss, size_p
+        r = xp.where(
+            xp.argmax(y.data, axis=1) == xp.argmax(target.data, axis=1), 1, 0).reshape((num_lm, 1)).astype(xp.float32)
+        r += r_buf
+        loss += F.sum((r - b) * (r - b))
+        loss_m = self.r * (r - b.data)
+        loss += F.sum(Variable(loss_m) * size_p)
+        return loss, r
 
     def make_img(self, x, l, s, num_lm, random=0):
         if random == 0:
