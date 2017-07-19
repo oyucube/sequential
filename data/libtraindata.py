@@ -79,6 +79,18 @@ def make_train_data(data, mnist, num_class, size=112):
     return train_data.astype(np.float32), train_target.astype(np.float32)
 
 
+def make_sequential_train_data(data, mnist, num_class, size=112):
+    data_max = data.shape[0]
+    train_data = np.empty((data_max, size, size))
+    train_target = np.empty((data_max, num_class))
+    train_target2 = np.empty((data_max, num_class))
+    for i in range(data_max):
+        train_data[i] = data_to_img(data[i], mnist, size)
+        train_target[i] = one_of_k(num_class, data[i][8])
+        train_target2[i] = one_of_k(num_class, data[i][9])
+    return train_data.astype(np.float32), train_target.astype(np.float32), train_target2.astype(np.float32)
+
+
 def one_of_k(num_class, c):
     r = np.zeros(num_class)
     r[int(c)] = 1

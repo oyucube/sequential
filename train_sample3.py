@@ -160,7 +160,10 @@ for epoch in range(n_epoch):
         t2 = chainer.Variable(xp.asarray(xp.tile(train_target2[perm[i:i+train_b]], (num_lm, 1))), volatile="off")
         # 順伝播
         model.cleargrads()
-        loss_func = model(x, t, t2, num_lm * train_b, batch_size=train_b, train=1, n_step=num_step)
+        loss_func = 0
+        # loss_func += model(x, t, t, num_lm * train_b, batch_size=train_b, train=1, n_step=1)
+        loss_func += model(x, t2, t2, num_lm * train_b, batch_size=train_b, train=1, n_step=2)
+
         loss_func.backward()
         loss_func.unchain_backward()  # truncate
         optimizer.update()

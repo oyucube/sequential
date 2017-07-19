@@ -96,11 +96,11 @@ class SAF(chainer.Chain):
                     loss_buf += loss
                     return loss_buf / num_lm
                 else:
-                    xm, lm, sm = self.make_img(x, l, s, num_lm, random=1)
+                    xm, lm, sm = self.make_img(x, l, s, num_lm, random=0)
                     l1, s1, y, b1 = self.recurrent_forward(xm, lm, sm)
-                    loss, r = self.cul_loss(y, target, l, s, lm, sm, r_buf, b, num_lm)
+                    # loss, r = self.cul_loss(y, target, l, s, lm, sm, r_buf, b, num_lm)
                     # r_buf += r test delete
-                    loss_buf += loss
+                    # loss_buf += loss
                 l = l1
                 s = s1
                 b = b1
